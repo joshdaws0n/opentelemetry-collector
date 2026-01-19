@@ -8,7 +8,7 @@ exporters:
   debug:
     verbosity: detailed
 
-  otlp/grafanacloud:
+  otlp_http/grafanacloud:
     endpoint: ${env:OTEL_EXPORTER_OTLP_ENDPOINT}
     headers: 
       authorization: ${env:OTEL_EXPORTER_OTLP_HEADERS}
@@ -33,12 +33,12 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch, memory_limiter]
-      exporters: [otlp/grafanacloud, debug]
+      exporters: [otlp_http/grafanacloud, debug]
     metrics:
       receivers: [otlp]
       processors: [batch, memory_limiter]
-      exporters: [otlp/grafanacloud, debug]
+      exporters: [otlp_http/grafanacloud, debug]
     logs:
       receivers: [otlp]
       processors: [batch, memory_limiter]
-      exporters: [otlp/grafanacloud, debug]
+      exporters: [otlp_http/grafanacloud, debug]
