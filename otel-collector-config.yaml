@@ -28,7 +28,6 @@ extensions:
     endpoint: 0.0.0.0:1888
   zpages:
     endpoint: 0.0.0.0:55679
-    extensions:
   basicauth/grafana_cloud:
     # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/basicauthextension
     client_auth:
