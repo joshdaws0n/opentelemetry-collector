@@ -1,62 +1,209 @@
-# Open Telemetry Collector Stack
+# OpenTelemetry Collector Stack
 
-Deploy this [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) to Railway along with Zipkin, Jaeger, and Prometheus backends, with the click of a button!
+A centralized OpenTelemetry Collector deployment that receives telemetry data (traces, metrics, and logs) via OTLP and exports it to Grafana Cloud.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/7KNDff)
+## Overview
 
-# About this Repo
+This project runs an OpenTelemetry Collector Contrib distribution configured to:
+- Receive telemetry data via OTLP (gRPC and HTTP protocols)
+- Process data with batching and memory limiting
+- Export all telemetry to Grafana Cloud
+- Provide health checks and diagnostic endpoints
 
-This repository contains the Dockerfile and config yaml for the [Open Telemetry Collector](https://github.com/open-telemetry/opentelemetry-collector/tree/main), ready to deploy to Railway.
+## Architecture
 
-It also contains an [example node app](https://github.com/railwayapp-templates/opentelemetry-collector-stack/tree/main/exampleApp) that is instrumented with [Otel's node SDK](https://opentelemetry.io/docs/languages/js/getting-started/nodejs/).
+### Receivers
+- **OTLP gRPC**: Port 4317 (default)
+- **OTLP HTTP**: Port 4318 (configured at `0.0.0.0:4318`)
 
-For information on how to deploy the the collector and app, check out [the tutorial in Railway](https://docs.railway.app/tutorials/deploy-an-otel-collector-stack).
+### Processors
+- **Batch Processor**: Batches telemetry data for efficient export
+- **Memory Limiter**: Prevents memory overload (80% limit, 15% spike allowance)
 
-## Technical Details
+### Exporters
+- **Grafana Cloud**: Exports traces, metrics, and logs via OTLP HTTP
+- **Debug**: Basic verbosity logging for troubleshooting
 
-When you deploy this collector and stack from the Railway template by clicking the button above, each of the following services will be deployed.
+### Extensions
+- **Health Check**: Service health monitoring
+- **pprof**: Performance profiling (port 1888)
+- **zpages**: Diagnostic pages (port 55679)
+- **Basic Auth**: Authentication for Grafana Cloud
 
-### OpenTelemetry Collector
+## Configuration
 
-The collector is a vendor-agnostic way to receive, process and export telemetry data.  
+### Environment Variables
 
-It is deployed with a [configuration file](https://github.com/railwayapp-templates/opentelemetry-collector-stack/blob/main/otel-collector-config.yaml) that enables it to send data to the complementary backend services.
+The following environment variables must be configured in Railway:
 
-The zpages extension is enabled, allowing you to connect to the debug UI from your browser.  More information on the extension can be found [here](https://github.com/open-telemetry/opentelemetry-collector/blob/main/extension/zpagesextension/README.md).
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GRAFANA_CLOUD_OTLP_ENDPOINT` | Your Grafana Cloud OTLP endpoint | `https://otlp-gateway-prod-us-east-0.grafana.net/otlp` |
+| `GRAFANA_CLOUD_INSTANCE_ID` | Your Grafana Cloud instance ID | `123456` |
+| `GRAFANA_CLOUD_API_KEY` | Your Grafana Cloud API key | `glc_xxxxxxxxxxxxx` |
 
-#### Documentation
+### Getting Grafana Cloud Credentials
 
-- [Collector Documentation](https://opentelemetry.io/docs/)
-- [Configuration File Documentation](https://opentelemetry.io/docs/collector/configuration/)
+1. Log in to your Grafana Cloud account
+2. Navigate to **Connections** → **Add new connection** → **OpenTelemetry**
+3. Copy your OTLP endpoint, instance ID, and generate an API token
 
-Port map for reference:
+## Deployment on Railway
 
-    - "1888"   # pprof extension
-    - "8888"   # Prometheus metrics exposed by the collector
-    - "8889"   # Prometheus exporter metrics
-    - "13133" # health_check extension
-    - "4317"   # OTLP gRPC receiver
-    - "4318"   # OTLP HTTP receiver
-    - "55679" # zpages extension
+### Initial Setup
 
-### Zipkin
+1. **Create a new project in Railway**
+   - Connect your GitHub repository
+   - Railway will automatically detect the [`Dockerfile`](Dockerfile:1)
 
-Zipkin is a distributed tracing system.  It receives data from the Otel Collector on port 9411.
-- [Zipkin Documentation](https://zipkin.io/)
+2. **Configure environment variables**
+   - Go to your service settings in Railway
+   - Add the three required environment variables listed above
 
-### Jaeger
+3. **Deploy**
+   - Railway will automatically build and deploy the Docker container
+   - The service will be available on Railway's internal network
 
-Jaeger is a distributed tracing system.  It receives data from the Otel Collector on port 4317.
-- [Jaeger Documentation](https://www.jaegertracing.io/docs/1.55/)
+### Continuous Deployment
 
-### Prometheus
+- **Automatic deployments**: Any commit pushed to the `main` branch will trigger a new deployment
+- **Build process**: Railway builds the Docker image using the [`Dockerfile`](Dockerfile:1)
+- **Configuration**: The collector uses [`otel-collector-config.yaml`](otel-collector-config.yaml:1)
 
-Prometheus is a systems monitoring and alerting toolkit.  It receives data from the Otel Collector on port 8889.
-- [Prometheus Documentation](https://prometheus.io/docs/introduction/overview/)
+### Exposed Ports
 
-## Example Apps
-We will continue to add examples as we engage with our users and work through various implementations.  
+The following ports are exposed by the service:
 
-If you have an example, we would LOVE to include it.  PRs welcome!!
-- [node](/exampleApps/node)
-- [rust](/exampleApps/rust)
+| Port | Service | Description |
+|------|---------|-------------|
+| 4317 | OTLP gRPC | Primary receiver for OTLP over gRPC |
+| 4318 | OTLP HTTP | Primary receiver for OTLP over HTTP |
+| 1888 | pprof | Performance profiling endpoint |
+| 8888 | Prometheus | Metrics endpoint (if enabled) |
+| 8889 | Prometheus | Metrics endpoint (if enabled) |
+| 13133 | Health Check | Health check endpoint |
+| 55679 | zpages | Diagnostic pages |
+
+## Usage
+
+### Sending Telemetry Data
+
+Configure your applications to send telemetry to the collector's Railway URL:
+
+#### Using OTLP gRPC (Port 4317)
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://your-railway-service.railway.app:4317"
+```
+
+#### Using OTLP HTTP (Port 4318)
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT="https://your-railway-service.railway.app:4318"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+```
+
+### Example: Python Application
+
+```python
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+trace.set_tracer_provider(TracerProvider())
+otlp_exporter = OTLPSpanExporter(
+    endpoint="https://your-railway-service.railway.app:4318/v1/traces"
+)
+trace.get_tracer_provider().add_span_processor(
+    BatchSpanProcessor(otlp_exporter)
+)
+```
+
+## Health Checks
+
+### Health Check Endpoint
+```bash
+curl https://your-railway-service.railway.app:13133
+```
+
+### zpages Diagnostics
+Access diagnostic information at:
+```
+https://your-railway-service.railway.app:55679/debug/tracez
+https://your-railway-service.railway.app:55679/debug/pipelinez
+```
+
+## Local Development
+
+### Running Locally with Docker
+
+1. **Set environment variables**:
+   ```bash
+   export GRAFANA_CLOUD_OTLP_ENDPOINT="https://otlp-gateway-prod-us-east-0.grafana.net/otlp"
+   export GRAFANA_CLOUD_INSTANCE_ID="your-instance-id"
+   export GRAFANA_CLOUD_API_KEY="your-api-key"
+   ```
+
+2. **Build the Docker image**:
+   ```bash
+   docker build -t otel-collector .
+   ```
+
+3. **Run the container**:
+   ```bash
+   docker run -p 4317:4317 -p 4318:4318 -p 13133:13133 \
+     -e GRAFANA_CLOUD_OTLP_ENDPOINT \
+     -e GRAFANA_CLOUD_INSTANCE_ID \
+     -e GRAFANA_CLOUD_API_KEY \
+     otel-collector
+   ```
+
+4. **Test the collector**:
+   ```bash
+   curl -X POST http://localhost:4318/v1/traces \
+     -H "Content-Type: application/json" \
+     -d '{"resourceSpans":[]}'
+   ```
+
+## Troubleshooting
+
+### Collector Not Receiving Data
+- Verify the OTLP endpoint URL in your application configuration
+- Check that ports 4317 (gRPC) or 4318 (HTTP) are accessible
+- Review Railway logs for connection errors
+
+### Data Not Appearing in Grafana Cloud
+- Verify environment variables are set correctly in Railway
+- Check the `GRAFANA_CLOUD_OTLP_ENDPOINT` format
+- Ensure the API key has the correct permissions
+- Review collector logs for authentication errors
+
+### Memory Issues
+- The memory limiter is configured to use 80% of available memory
+- Adjust `limit_percentage` in [`otel-collector-config.yaml`](otel-collector-config.yaml:22) if needed
+- Monitor memory usage via Railway metrics
+
+### Viewing Logs
+```bash
+# In Railway dashboard, go to your service and click "View Logs"
+# Or use Railway CLI:
+railway logs
+```
+
+## Configuration Files
+
+- [`otel-collector-config.yaml`](otel-collector-config.yaml:1) - OpenTelemetry Collector configuration
+- [`Dockerfile`](Dockerfile:1) - Container image definition
+
+## Version
+
+- **OpenTelemetry Collector Contrib**: v0.144.0
+
+## License
+
+See [`LICENSE`](LICENSE:1) file for details.
+
+## Resources
+
+- [OpenTelemetry Collector Documentation](https://opentelemetry.io/docs/collector/)
+- [Grafana Cloud OTLP Documentation](https://grafana.com/docs/grafana-cloud/send-data/otlp/)
+- [Railway Documentation](https://docs.railway.app/)

@@ -7,7 +7,7 @@ receivers:
 
 exporters:
   debug:
-    verbosity: detailed
+    verbosity: basic
 
   otlphttp/grafana_cloud:
     # https://github.com/open-telemetry/opentelemetry-collector/tree/main/exporter/otlphttpexporter
@@ -21,6 +21,14 @@ processors:
     check_interval: 1s
     limit_percentage: 80
     spike_limit_percentage: 15
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 10000
+    policies:
+      - name: sample_10_percent
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
 
 extensions:
   health_check:
@@ -36,16 +44,21 @@ extensions:
 
 service:
   extensions: [pprof, zpages, health_check, basicauth/grafana_cloud]
+  telemetry:
+    logs:
+      level: "INFO"
+      output_paths: ["stdout"]
+      error_output_paths: ["stderr"]
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch, memory_limiter]
-      exporters: [otlphttp/grafana_cloud, debug]
+      processors: [tail_sampling, batch, memory_limiter]
+      exporters: [otlphttp/grafana_cloud]
     metrics:
       receivers: [otlp]
       processors: [batch, memory_limiter]
-      exporters: [otlphttp/grafana_cloud, debug]
+      exporters: [otlphttp/grafana_cloud]
     logs:
       receivers: [otlp]
       processors: [batch, memory_limiter]
-      exporters: [otlphttp/grafana_cloud, debug]
+      exporters: [otlphttp/grafana_cloud]
