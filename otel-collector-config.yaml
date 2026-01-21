@@ -3,6 +3,7 @@ receivers:
     protocols:
       grpc:
       http:
+        endpoint: "0.0.0.0:4318"
 
 exporters:
   debug:
@@ -23,9 +24,9 @@ processors:
 extensions:
   health_check:
   pprof:
-    endpoint: :1888
+    endpoint: 0.0.0.0:1888
   zpages:
-    endpoint: :55679
+    endpoint: 0.0.0.0:55679
 
 service:
   extensions: [pprof, zpages, health_check]
