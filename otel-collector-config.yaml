@@ -52,13 +52,13 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [tail_sampling, batch, memory_limiter]
+      processors: [memory_limiter, tail_sampling, batch]
       exporters: [otlphttp/grafana_cloud]
     metrics:
       receivers: [otlp]
-      processors: [batch, memory_limiter]
+      processors: [memory_limiter, batch]
       exporters: [otlphttp/grafana_cloud]
     logs:
       receivers: [otlp]
-      processors: [batch, memory_limiter]
+      processors: [memory_limiter, batch]
       exporters: [otlphttp/grafana_cloud]
